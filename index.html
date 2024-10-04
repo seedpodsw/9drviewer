@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>9th Dawn Remake Texture Viewer</title>
+	<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<select id="imageDropdown">
+	<option value="">Select a map</option>
+</select>
+
+<div id="map"></div>
+
+<script type="module">
+	import { imageMaps } from './maps.js';
+	const dropdown = document.getElementById('imageDropdown');
+	const mapDiv = document.getElementById('map');
+	let imgElement;
+	let scale = 1;
+	let isPanning = false;
+	let startX, startY, originX = 0, originY = 0;
+
+	function populateDropdown() {
+		imageMaps.forEach((image, index) => {
+			const option = document.createElement('option');
+			option.value = index;
+			option.text = image.label;
+			dropdown.appendChild(option);
+		});
+	}
+
+	function renderImageMap(image) {
+		mapDiv.innerHTML = '';
+
+		imgElement = document.createElement('img');
+		imgElement.src = `./images/${image.filename}`;
+		imgElement.alt = image.label;
+
+		mapDiv.appendChild(imgElement);
+
+		scale = 1;
+		originX = 0;
+		originY = 0;
+
+		imgElement.onload = () => {
+			const mapWidth = mapDiv.clientWidth;
+			const mapHeight = mapDiv.clientHeight;
+
+			imgElement.style.width = `${mapWidth}px`;
+			imgElement.style.height = `${mapHeight}px`;
+
+			originX = (mapWidth - mapWidth) / 2;
+			originY = (mapHeight - mapHeight) / 2;
+
+			imgElement.style.left = `${originX}px`;
+			imgElement.style.top = `${originY}px`;
+		};
+
+		imgElement.addEventListener('wheel', zoomImage);
+		imgElement.addEventListener('mousedown', startPan);
+
+		dropdown.focus();
+	}
+
+	function zoomImage(event) {
+		event.preventDefault();
+
+		const zoomSpeed = 0.1;
+		const previousScale = scale;
+
+		scale += event.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+		scale = Math.max(0.5, Math.min(scale, 7));
+
+		const rect = imgElement.getBoundingClientRect();
+		const mouseX = event.clientX - rect.left;
+		const mouseY = event.clientY - rect.top;
+
+		const dx = (mouseX / previousScale) * (scale - previousScale);
+		const dy = (mouseY / previousScale) * (scale - previousScale);
+
+		originX -= dx;
+		originY -= dy;
+
+		imgElement.style.transform = `scale(${scale})`;
+		imgElement.style.left = `${originX}px`;
+		imgElement.style.top = `${originY}px`;
+
+		dropdown.focus();
+	}
+
+	function startPan(event) {
+		event.preventDefault();
+		isPanning = true;
+		mapDiv.style.cursor = 'grabbing';
+		startX = event.clientX - originX;
+		startY = event.clientY - originY;
+		document.addEventListener('mousemove', panImage);
+		document.addEventListener('mouseup', endPan);
+	}
+
+	function panImage(event) {
+		if (!isPanning) return;
+		originX = event.clientX - startX;
+		originY = event.clientY - startY;
+		imgElement.style.left = `${originX}px`;
+		imgElement.style.top = `${originY}px`;
+	}
+
+	function endPan() {
+		isPanning = false;
+		mapDiv.style.cursor = 'grab';
+		document.removeEventListener('mousemove', panImage);
+		document.removeEventListener('mouseup', endPan);
+
+		dropdown.focus();
+	}
+
+	function autoLoadFirstImage() {
+		if (imageMaps.length > 0) {
+			renderImageMap(imageMaps[0]);
+			dropdown.selectedIndex = 1;
+		}
+	}
+
+	dropdown.addEventListener('change', function () {
+		const selectedIndex = this.value;
+		if (selectedIndex !== '') {
+			const selectedImage = imageMaps[selectedIndex];
+			renderImageMap(selectedImage);
+		}
+	});
+
+	populateDropdown();
+	autoLoadFirstImage();
+
+</script>
+
+</body>
+</html>
